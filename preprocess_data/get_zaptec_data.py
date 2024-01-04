@@ -30,8 +30,6 @@ def get_chargehistory(chargers_path, token):
     Use Zaptec API to get data of charge history
     :param chargers_path: The path for the csv containing constant charger information
     :return: csv-file of chargehistory for all chargers
-
-    NB! Now this function is not preprocessing the data. This should be done from another function?
     """
     base_url = "https://api.zaptec.com/api/chargehistory"
 

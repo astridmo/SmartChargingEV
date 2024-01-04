@@ -55,8 +55,8 @@ def create_spotprice_df(include_2030=False):
     """
     Function to process the Day-Ahead-prices from Nordpool and save it in a csv with DateTimeUTC as index and price as
     value. The Day-Ahead input data is in UTC (it is transformed from CET to UTC at an earlier step)
-
-    :return:
+    :param include_2030: If 'True' a generated dataset from 2030 is included
+    :return: df_price: DataFrame of spot prices
     """
     df_price = pd.DataFrame()
     for year in year_dict.keys():
@@ -90,11 +90,14 @@ def create_spotprice_df(include_2030=False):
 
     df_price.to_csv(f"../assets/nordpool/spot_prices_{date.today()}.csv")
 
+    return df_price
+
 
 def get_2030_spotprice():
     """
     Function to create spot price data for 2030.
-    :return:
+    :return: df_spotprice: DataFrame of hourly generated spot prices for 2030
+             df_utfallsrom: DataFrame of the parameters used to make the spot prices
     """
     utfallsrom = {  # i kr/MWh
         'januar': {'Mean': 960, 'STD': 140},
@@ -118,36 +121,36 @@ def get_2030_spotprice():
         'oktober': 10, 'november': 11, 'desember': 12
     }
 
-    # DataFrame for å lagre tidspunkter og beregnede verdier
+    # DataFrame to save hourly calculated values
     df_spot_price_2030 = pd.DataFrame()
 
     for month_name, values in utfallsrom.items():
         month_number = months_map[month_name]
-        # Sett en seed for reproduserbarhet
+        # Set seed for reproducability
         np.random.seed(month_number + 1)
 
-        # Lag DataTime verdier
+        # Make DataTime-values
         year = 2030
         start_date = f"{year}-{month_number:02d}-01 00:00"
         end_day = calendar.monthrange(year, month_number)[1]
         end_date = f"{year}-{month_number:02d}-{end_day} 23:00"
         date_range = pd.date_range(start=start_date, end=end_date, freq='H')
 
-        # Opprette en midlertidig DataFrame for denne måneden
+        # Create temporart DataFrame for this month
         temp_df = pd.DataFrame(date_range, columns=['DateTimeUtc'])
-        num_hours = len(temp_df)  # Antall timer i måneden
+        num_hours = len(temp_df)  # Number of hours in the month
 
-        # Generer et kunstig datasett for denne måneden ved hjelp av normalfordeling
-        mean = values['Mean']  # Finner gjennomsnittsverdi
-        std_dev = values['STD']  # Finner standardavviket
-        temp_df['Price [NOK/MWh]'] = norm.rvs(loc=mean, scale=std_dev, size=num_hours)  # Genererer datasettet
+        # Create artificial dataset for this month by using normal distribution
+        mean = values['Mean']  # Find average
+        std_dev = values['STD']  # Find standard deviation
+        temp_df['Price [NOK/MWh]'] = norm.rvs(loc=mean, scale=std_dev, size=num_hours)  # Generate dataset
 
-        # Legge til i prisene i dataframen for spotpriser i 2030
+        # Add prices to the DataFrame for spotprices in 2030
         df_spot_price_2030 = pd.concat([df_spot_price_2030, temp_df])
 
-    # Sette 'Datetime' kolonnen som index
+    # Set 'Datetime' columns as index
     df_spot_price_2030.set_index('DateTimeUtc', inplace=True)
 
-    df_utfallsrom = pd.DataFrame(utfallsrom).T  # Transponerer for å få månedene som indeks
+    df_utfallsrom = pd.DataFrame(utfallsrom).T  # Transpose to get the months as index
 
     return df_spot_price_2030, df_utfallsrom

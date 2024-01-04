@@ -1,3 +1,7 @@
+"""
+File to preprocess the data from Zaptec
+"""
+
 import json
 import numpy as np
 import pandas as pd
@@ -18,6 +22,7 @@ def make_complete_data(df_charge_session, df_nordpool, first_date=None, last_dat
     # Process the data of Chargehistory from Zaptec-API
     df_charge_session, df_detailed = process_chargehistory(df_charge_session, first_date, last_date, limit, departure24)
 
+    # Add energy cost
     df_overview, df_detailed = add_energy_cost(df_charge_session, df_detailed, df_nordpool)
 
     return df_overview, df_detailed
@@ -77,16 +82,16 @@ def process_chargehistory(df_charge_session, first_date=None, last_date=None, li
     df_overview = process_arrival_departure_times(df_charge_session, departure24)
 
     # ==============================
-    # Slett nye ugyldige rader
+    # Delete new invalid rows
     # ==============================
-    # Slett timer med samme ankomst og avreise (parkert max 1:57 min)
+    # Delete cars with the same arrival and departure time (parked max 1h 57 min)
     maske = (df_overview['StartDateTime'] != df_overview['EndDateTime']) & (
                 df_overview['EndDateTime'] > df_overview['StartDateTime'])
     df_overview = df_overview[maske]
     df_overview.reset_index(drop=True, inplace=True)  # reset index
 
 
-    # Slett timer der ladeeffekten ikke er høy nok
+    # Delete rows where the maximum charging power is not enough to charge the required amount
     time_frame = (df_overview["EndDateTime"] - df_overview["StartDateTime"])
     time_frame_hours = (time_frame.dt.total_seconds() / 3600).astype(int)
 
@@ -96,7 +101,7 @@ def process_chargehistory(df_charge_session, first_date=None, last_date=None, li
 
     df_detailed = get_detailed_charging(df_overview, departure24)
 
-    # Delete CommitEndDateTime, TokenName and SignedSession (TokenName is only NaN, CommitEndDateTime is equal to
+    # Delete CommitEndDateTime, TokenName and SignedSession (TokenName is only NaN, CommitEndDateTime is equal to \
     # EndDateTime and SignedSession is put into df_detailed
     df_overview = df_overview.drop(columns=['CommitEndDateTime', 'TokenName', 'SignedSession'])
 
@@ -105,7 +110,7 @@ def process_chargehistory(df_charge_session, first_date=None, last_date=None, li
 
 def process_arrival_departure_times(df_overview, departure24):
     """
-    Function to process arrival time and departure time in df_overview to be whole ours (ex 10.00). This in order for
+    Function to process arrival time and departure time in df_overview to be whole hours (ex 10.00). This in order for
     the simulation to work + make sure we filter out the same data for the simulation and for the comparison
     data.
     Both the arrival- and departure time if rounded down. This is in order not to lose to many charging cycles in later
@@ -122,7 +127,7 @@ def process_arrival_departure_times(df_overview, departure24):
     # Round EndDateTime down to the beginning of the hour (in order to not charge after departure)
     df_overview["EndDateTime"] = df_overview["EndDateTime"].dt.floor("H")
 
-    # Choose to set departure time to 32 hours-
+    # Choose to set departure time to 24 hours
     if departure24:
         df_overview['EndDateTime'] = np.where(
             df_overview['EndDateTime'] > df_overview['StartDateTime'] + pd.Timedelta(hours=24),
@@ -144,7 +149,7 @@ def process_arrival_departure_times(df_overview, departure24):
 def get_detailed_charging(df_charging):
     """
     Function to extract the detailed charging details for each charging sessions. There is measures for every 15 minute
-    that the car is charging
+    that the car is charging + start and stop time
     :param df_charging: DataFrame of the charging overview. The detailed charging details are stored in the column
                         "SignedSession"
     :return: df_detailed: DataFrame of detailed charging details.
@@ -219,16 +224,17 @@ def add_energy_cost(df_overview, df_detailed, df_spot_prices):
 
 def remove_etterlading(df_detailed, limit=10, departure24=False):
     """
-    Funksjon for å kun se på lading som skjer innenfor 24 timer, og dermed eksklusdere etterlading.
-    :param df_detailed: Prosessert df_detailed som også skal inneholde kostnader.
-    :param limit: Minimum grense for hvor mye energi bilen må ha ladet det første døgnet for at bilen skal inkluderes
-    :param: departure24: 'True' betyr at bilen har avreise 24 timer etter ankomst. 'False' betyr at original avreise benyttes
-    :return: df_overview_wo_etterlading - DataFrame med oppsummert lading for de første 24 timene per ladesyklus
+    Function to only look at charging happening within 24 hours, and thereby excluding 'etterlading'.
+    :param df_detailed: Processed df_detailed that also contains costs.
+    :param limit: Minimum limit for how much energy the car needs to charge the first day in order to be included
+    :param: departure24: 'True' means that the car has departe 24 timer after arrival. 'False' means the original
+                          departure time is being used
+    :return: df_overview_wo_etterlading - DataFrame with overview of charging for the first 24 hour of each charging cycle
     """
     # Sorter data
     df_detailed = df_detailed.sort_values(by=['charge_cycle_id', 'DateTimeUtc'])
 
-    # Finn starttidspunkt for hver id
+    # Find start time for each ID
     start_times = df_detailed.groupby('charge_cycle_id')['DateTimeUtc'].first()
 
     def filter_rows(group):
