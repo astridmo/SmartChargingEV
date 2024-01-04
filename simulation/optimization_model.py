@@ -75,7 +75,7 @@ def _new_starthour(df_overview_simulation):
     return df_overview_simulation
 
 
-def optimize_charging(df_overview, df_spotprice, peak_costs, start_time_utc, power_method):
+def optimize_charging(df_overview, df_spotprice, peak_tariff, start_time_utc, power_method):
     # Antall elbiler
     N_cars = len(df_overview)
 
@@ -133,7 +133,7 @@ def optimize_charging(df_overview, df_spotprice, peak_costs, start_time_utc, pow
 
     # Objective function
     energy_cost = quicksum(charge_rate[v, t] * charging_cost_per_hour[t-1] for v in range(N_cars) for t in range(n_hours))
-    peak_cost = quicksum(peak_costs[m] * peak_load_monthly[m] for m in unique_months)
+    peak_cost = quicksum(peak_tariff[m] * peak_load_monthly[m] for m in unique_months)
 
     m.setObjective(energy_cost + peak_cost, GRB.MINIMIZE)
     con_power = []
@@ -190,22 +190,11 @@ def optimize_charging(df_overview, df_spotprice, peak_costs, start_time_utc, pow
     else:
         print(f"Optimalisering ble stoppet med status {m.status}")
 
-    #for v in range(N_cars):
-        #print(f"Vehicle {v+1} charging schedule: {[charge_rate[v, t].x for t in range(1, n_hours)]}")
-        #individual_energy_cost = sum(charge_rate[v, t].x * charging_cost_per_hour[t-1] for t in range(n_hours))
-        #print(f"Vehicle {v+1}  --> Energikostnad: {round(individual_energy_cost, 2)} kr")
 
     print("****************************")
-    print("Objektiv-verdien gir: ", round(m.objVal, 2), "kr")
     print("Den totale kostnaden blir:", round(energy_cost.getValue() + peak_cost.getValue(), 2), "kr")
-
-    # For energikostnaden må vi beregne den manuelt igjen ettersom den ikke er en egen variabel i modellen
-    # total_energy_cost = sum(charge_rate[v, t].x * charging_cost_per_hour[t-1] for v in range(N_cars) for t in range(n_hours))
     print("Energikostnaden blir:", round(energy_cost.getValue(), 2), "kr")
-
-    # Tilsvarende må vi beregne topplastkostnaden manuelt
     print("Topplastkostnaden blir:", round(peak_cost.getValue(), 2), "kr")
-
     # Månedlig peak load
     monthly_peak_loads = [peak_load_monthly[m].x for m in unique_months]
     print("Månedlig", monthly_peak_loads)

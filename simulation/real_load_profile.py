@@ -1,5 +1,5 @@
 import pandas as pd
-from simulation import get_df_overview
+from optimization_model import get_df_overview
 
 def get_real_costs(df_overview_csv, df_detailed_csv, df_spot_prices_csv, peak_cost_dict, start_time):
     """
