@@ -2,8 +2,17 @@ from gurobipy import *
 import pandas as pd
 from datetime import timedelta
 
+
 def run_simulation(start_time_utc, peak_tariff, df_overview_csv, df_spotprice_csv, power_method):
-    """Function to run the simulation"""
+    """
+    Function to run the simulation. It starts by getting the relevant spot prices and then doing the optimization
+    :param start_time_utc: The start date of the optimization. Set to 1. january 09:00 to get the real time
+    :param peak_tariff: dict of monthly peak tariffs
+    :param df_overview_csv: csv of overview charging data
+    :param df_spotprice_csv: csv of spot prices
+    :param power_method: str - "Reell" for real max power, "22" for 22 kW max power for each car
+    :return: dict of optimized results
+    """
 
     df_spotprice = get_relevant_spotprices(df_spotprice_csv, start_time_utc)
 
@@ -11,8 +20,6 @@ def run_simulation(start_time_utc, peak_tariff, df_overview_csv, df_spotprice_cs
 
     # Run optimization
     optimization_results = optimize_charging(df_overview, df_spotprice, peak_tariff, start_time_utc, power_method)
-
-
 
     return optimization_results
 
@@ -36,6 +43,11 @@ def get_relevant_spotprices(df_spotprice_csv, start_time_utc):
 
 
 def get_df_overview(df_overview_csv):
+    """
+    Function to preprocess the csv file.
+    :param df_overview_csv: Overview of charging
+    :return: DataFrame
+    """
     # Load files
     df_overview = pd.read_csv(df_overview_csv)
 
@@ -76,6 +88,16 @@ def _new_starthour(df_overview_simulation):
 
 
 def optimize_charging(df_overview, df_spotprice, peak_tariff, start_time_utc, power_method):
+    """
+    Function to run the optimization
+
+    :param df_overview: DataFrame of arrival, departure and energy requirement
+    :param df_spotprice: DataFrame of spot prices
+    :param peak_tariff: Monthly peak tariff
+    :param start_time_utc: The start time of the simulation
+    :param power_method: str - "Reell" for real max power, "22" for 22 kW max power for each car
+    :return: dict of optimized results
+    """
     # Antall elbiler
     N_cars = len(df_overview)
 

@@ -74,7 +74,10 @@ def shift_dataframe_time(df_overview, df_detailed, time_string):
 
 def add_energy_cost(df_overview, df_detailed, df_spot_prices):
     """
-    Legger til strømkostnaden til df_detailed og df_overview vha priser fra df_spot_prices.
+    Add energy cost to df_detailed and df_overview by using prices from df_spot_prices
+    :param df_overview: DataFrame with overview charging data
+    :param df_detailed: DataFrame with detailed charging data
+    :param df_spot_prices: DataFrame with spot prices
     """
     df_detailed = df_detailed.reset_index()
     # ===================================================
@@ -99,6 +102,13 @@ def add_energy_cost(df_overview, df_detailed, df_spot_prices):
 
 
 def calculate_monthly_costs(df_detailed, load_df, peak_cost_dict):
+    """
+    Calculate monthly costs - energy cost, power cost and total cost
+    :param df_detailed: Detailed overview of charging
+    :param load_df: Aggregated hourly load profile for all cars
+    :param peak_cost_dict: Monthly peak tariff
+    :return: DataFrame of monthly costs
+    """
     # Grupper dataene etter år og måned, og finn indeksen for maksimalt forbruk i hver gruppe
     idx = load_df.groupby([load_df.index.month])['Charged_energy'].idxmax()
 
