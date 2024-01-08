@@ -269,7 +269,7 @@ def optimize_charging(df_overview, df_spotprice, peak_tariff, start_time_utc, po
 
         for v in range(N_cars):
             vehicle_charge_rates = [charge_rate[v, t].x for t in
-                                    range(n_hours)]  
+                                    range(n_hours)]
             vehicle_total_charge.append(sum(vehicle_charge_rates))
 
             vehicles_charging_schedule[v] = vehicle_charge_rates
